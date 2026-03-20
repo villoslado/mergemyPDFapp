@@ -11,56 +11,89 @@
 
         function MergeFileInputs() {
             var useState = React.useState;
-            var _useState = useState([1]);
-            var inputIds = _useState[0];
-            var setInputIds = _useState[1];
+            var _useState = useState([
+                { id: 1, fileName: "" },
+                { id: 2, fileName: "" },
+            ]);
+            var rows = _useState[0];
+            var setRows = _useState[1];
 
             function addFileInput() {
-                setInputIds(function (ids) {
+                setRows(function (currentRows) {
+                    var ids = currentRows.map(function (row) {
+                        return row.id;
+                    });
                     var nextId = ids.length > 0 ? Math.max.apply(null, ids) + 1 : 1;
-                    return ids.concat(nextId);
+                    return currentRows.concat({ id: nextId, fileName: "" });
                 });
             }
 
             function removeFileInput(inputId) {
-                setInputIds(function (ids) {
-                    if (ids.length <= 1) {
-                        return ids;
+                setRows(function (currentRows) {
+                    if (currentRows.length <= 2) {
+                        return currentRows;
                     }
 
-                    return ids.filter(function (id) {
-                        return id !== inputId;
+                    return currentRows.filter(function (row) {
+                        return row.id !== inputId;
+                    });
+                });
+            }
+
+            function handleFileChange(inputId, event) {
+                var file = event.target.files && event.target.files[0];
+                var fileName = file ? file.name : "";
+
+                setRows(function (currentRows) {
+                    return currentRows.map(function (row) {
+                        if (row.id !== inputId) {
+                            return row;
+                        }
+
+                        return {
+                            id: row.id,
+                            fileName: fileName,
+                        };
                     });
                 });
             }
 
             var fields = [];
 
-            for (var index = 0; index < inputIds.length; index += 1) {
-                var inputId = inputIds[index];
+            for (var index = 0; index < rows.length; index += 1) {
+                var row = rows[index];
+                var inputId = row.id;
                 var inputNumber = index + 1;
 
                 fields.push(
                     e(
                         "div",
-                        { className: "mb-3", key: inputId },
+                        {
+                            className:
+                                "rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm",
+                            key: inputId,
+                        },
                         e(
                             "div",
-                            { className: "d-flex justify-content-between align-items-center mb-2" },
+                            {
+                                className:
+                                    "mb-3 flex items-center justify-between gap-3",
+                            },
                             e(
                                 "label",
                                 {
                                     htmlFor: "file" + inputId,
-                                    className: "form-label mb-0",
+                                    className: "text-sm font-medium text-slate-800",
                                 },
-                                "Upload PDF " + inputNumber
+                                "PDF file " + inputNumber
                             ),
-                            inputIds.length > 1
+                            rows.length > 2
                                 ? e(
                                       "button",
                                       {
                                           type: "button",
-                                          className: "btn btn-outline-danger btn-sm",
+                                          className:
+                                              "inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-50",
                                           onClick: (function (id) {
                                               return function () {
                                                   removeFileInput(id);
@@ -74,11 +107,34 @@
                         e("input", {
                             id: "file" + inputId,
                             type: "file",
-                            className: "form-control",
+                            className:
+                                "block w-full rounded-xl border-slate-300 bg-white text-sm text-slate-900 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:font-medium file:text-brand-700 hover:file:bg-brand-100 focus:border-brand-500 focus:ring-brand-500",
                             name: "files",
                             accept: "application/pdf",
                             required: true,
-                        })
+                            onChange: (function (id) {
+                                return function (event) {
+                                    handleFileChange(id, event);
+                                };
+                            })(inputId),
+                        }),
+                        row.fileName
+                            ? e(
+                                  "div",
+                                  {
+                                      className:
+                                          "mt-3 rounded-xl bg-white px-3 py-2 text-sm text-slate-600 ring-1 ring-slate-200",
+                                  },
+                                  "Selected file: " + row.fileName
+                              )
+                            : e(
+                                  "div",
+                                  {
+                                      className:
+                                          "mt-3 text-sm text-slate-500",
+                                  },
+                                  "No file selected yet."
+                              )
                     )
                 );
             }
@@ -88,15 +144,16 @@
                     "button",
                     {
                         type: "button",
-                        className: "btn btn-secondary me-2",
+                        className:
+                            "inline-flex items-center justify-center rounded-xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-medium text-brand-700 shadow-sm transition hover:border-orange-300 hover:bg-orange-50",
                         onClick: addFileInput,
                         key: "add-button",
                     },
-                    "Add Another File"
+                    "Add another PDF"
                 )
             );
 
-            return e(React.Fragment, null, fields);
+            return e("div", { className: "space-y-4" }, fields);
         }
 
         ReactDOM.createRoot(rootElement).render(e(MergeFileInputs));
