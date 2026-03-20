@@ -1,2 +1,1 @@
-web: gunicorn pdfmerger_project.wsgi
-
+web: python manage.py collectstatic --noinput && gunicorn pdfmerger_project.wsgi
