@@ -22,6 +22,8 @@
       --indigo-mid: #818CF8;
       --red: #DC2626;
       --red-bg: #FEF2F2;
+      --green: #059669;
+      --green-bg: #D1FAE5;
     }
 
     *, *::before, *::after {
@@ -357,7 +359,7 @@
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      transition: opacity 0.15s, transform 0.15s;
+      transition: opacity 0.2s, transform 0.15s;
     }
 
     .btn-merge:not(:disabled):hover {
@@ -390,6 +392,69 @@
       height: 14px;
       flex-shrink: 0;
     }
+
+    /* ── Success block ── */
+    #success-block {
+      display: none;
+      background: var(--green-bg);
+      border: 1px solid #6EE7B7;
+      border-radius: 4px;
+      padding: 14px 16px;
+      width: 100%;
+    }
+
+    #success-block .success-body {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    #success-block .success-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--green);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    #success-block .success-title {
+      font-family: 'Geist', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    #success-block .success-sub {
+      font-family: 'Geist', sans-serif;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--ink3);
+      margin-top: 3px;
+    }
+
+    #startover {
+      display: inline-block;
+      font-family: 'Geist', sans-serif;
+      font-size: 13px;
+      color: var(--indigo);
+      text-decoration: none;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    /* ── Clear all link ── */
+    #clearall {
+      font-family: 'Geist', sans-serif;
+      font-size: 11px;
+      color: var(--ink3);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    #clearall:hover {
+      color: var(--red);
+    }
+
   </style>
 </head>
 <body>
@@ -421,7 +486,10 @@
 
         <section class="queue-section" id="queue-section" aria-live="polite">
           <div class="queue-header">
-            <span class="queue-label">Queue</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="queue-label">Queue</span>
+              <a id="clearall">Clear all</a>
+            </div>
             <span class="queue-counter" id="queue-counter">0 files</span>
           </div>
           <div class="file-list" id="file-list" role="list"></div>
@@ -429,6 +497,19 @@
 
         <button type="button" class="btn-add" id="btn-add">+ Add more files</button>
         <button type="submit" class="btn-merge" id="btn-merge" disabled>Merge &amp; download</button>
+
+        <div id="success-block">
+          <div class="success-body">
+            <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div>
+              <div class="success-title">Merged successfully</div>
+              <div class="success-sub">Your download should have started</div>
+            </div>
+          </div>
+          <a id="startover">Start over</a>
+        </div>
 
       </form>
 
@@ -456,6 +537,9 @@
     var btnAdd       = document.getElementById('btn-add');
     var btnMerge     = document.getElementById('btn-merge');
     var mergeForm    = document.getElementById('merge-form');
+    var successBlock = document.getElementById('success-block');
+    var clearallLink = document.getElementById('clearall');
+    var startoverLink= document.getElementById('startover');
 
     /* ── Helpers ── */
 
@@ -608,6 +692,71 @@
       filePicker.click();
     });
 
+    /* ── Cookie polling ── */
+
+    var pollInterval = null;
+    var pollTimeout  = null;
+
+    function hasMergeCookie() {
+      return document.cookie.split(';').some(function(c) {
+        return c.trim().indexOf('merge_complete=') === 0;
+      });
+    }
+
+    function clearMergeCookie() {
+      document.cookie = 'merge_complete=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
+    }
+
+    function startPolling() {
+      pollInterval = setInterval(function() {
+        if (hasMergeCookie()) {
+          clearInterval(pollInterval);
+          clearTimeout(pollTimeout);
+          pollInterval = null;
+          pollTimeout  = null;
+          clearMergeCookie();
+          showSuccess();
+        }
+      }, 500);
+
+      pollTimeout = setTimeout(function() {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+        // Timeout fallback — reset button
+        btnMerge.textContent = 'Merge & download';
+        btnMerge.disabled = files.length < 2;
+      }, 30000);
+    }
+
+    function showSuccess() {
+      btnMerge.style.opacity = '0';
+      setTimeout(function() {
+        btnMerge.style.display = 'none';
+        successBlock.style.display = 'block';
+      }, 200);
+    }
+
+    /* ── Start over ── */
+
+    startoverLink.addEventListener('click', function() {
+      files = [];
+      render();
+      successBlock.style.display = 'none';
+      btnMerge.style.display = '';
+      btnMerge.style.opacity = '';
+      btnMerge.textContent = 'Merge & download';
+      btnMerge.disabled = true;
+    });
+
+    /* ── Clear all ── */
+
+    clearallLink.addEventListener('click', function() {
+      files = [];
+      render();
+    });
+
     /* ── Form submit: sync files[] → <input name="files"> via DataTransfer ── */
 
     mergeForm.addEventListener('submit', function(e) {
@@ -634,6 +783,11 @@
 
       // Assign the FileList (supported in all modern browsers)
       input.files = dt.files;
+
+      // Loading state + start cookie polling
+      btnMerge.textContent = 'Merging\u2026';
+      btnMerge.disabled = true;
+      startPolling();
     });
 
     // Boot
