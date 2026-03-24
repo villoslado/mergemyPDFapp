@@ -51,6 +51,9 @@ def merge_view(request):
                         response["Content-Disposition"] = (
                             'attachment; filename="merged.pdf"'
                         )
+                        response.set_cookie(
+                            "merge_complete", "1", max_age=60, samesite="Lax", path="/"
+                        )
 
                     return response
 

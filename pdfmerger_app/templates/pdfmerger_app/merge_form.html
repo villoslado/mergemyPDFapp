@@ -775,24 +775,57 @@
       filePicker.click();
     });
 
-    /* ── Iframe onload → success ── */
+    /* ── Cookie polling → success ── */
 
     var mergeIframe = document.getElementById('merge-iframe');
+    var _pollTimer = null;
+    var _pollTimeout = null;
 
-    mergeIframe.addEventListener('load', function() {
-      // Fires when the server responds (including a file download)
-      if (!mergeIframe._active) return;
-      mergeIframe._active = false;
-      const body = mergeIframe.contentDocument?.body?.innerText?.trim();
-      if (body && body.length > 0) {
-        showFileError('', body);
-        btnMerge.textContent = 'Merge & download';
+    function cancelPoll() {
+      if (_pollTimer)   { clearInterval(_pollTimer);  _pollTimer   = null; }
+      if (_pollTimeout) { clearTimeout(_pollTimeout); _pollTimeout = null; }
+    }
+
+    function startPoll() {
+      cancelPoll();
+
+      // Secondary: if the iframe loads with non-empty body text it's an error response
+      mergeIframe.onload = function() {
+        var body = '';
+        try { body = (mergeIframe.contentDocument && mergeIframe.contentDocument.body && mergeIframe.contentDocument.body.innerText || '').trim(); } catch(e) {}
+        if (body.length > 0) {
+          cancelPoll();
+          mergeIframe.onload = null;
+          showFileError('', body);
+          btnMerge.textContent = 'Merge \u0026 download';
+          btnMerge.disabled = false;
+          mergeForm.target = '';
+        }
+      };
+
+      // Primary: poll for merge_complete cookie every 500ms
+      _pollTimer = setInterval(function() {
+        var found = document.cookie.split(';').some(function(c) {
+          return c.trim() === 'merge_complete=1';
+        });
+        if (found) {
+          cancelPoll();
+          mergeIframe.onload = null;
+          document.cookie = 'merge_complete=; max-age=0; path=/';
+          showSuccess();
+        }
+      }, 500);
+
+      // Timeout after 30 seconds
+      _pollTimeout = setTimeout(function() {
+        cancelPoll();
+        mergeIframe.onload = null;
+        btnMerge.textContent = 'Merge \u0026 download';
         btnMerge.disabled = false;
         mergeForm.target = '';
-      } else {
-        showSuccess();
-      }
-    });
+        showFileError('', 'Something went wrong \u2014 please try again');
+      }, 30000);
+    }
 
     function showSuccess() {
       mergeForm.target = '';
@@ -850,9 +883,9 @@
       // Assign the FileList (supported in all modern browsers)
       input.files = dt.files;
 
-      // Point form at the hidden iframe and mark it active
+      // Point form at the hidden iframe and start polling
       mergeForm.target = 'merge-iframe';
-      mergeIframe._active = true;
+      startPoll();
 
       // Loading state
       btnMerge.textContent = 'Merging\u2026';
