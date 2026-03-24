@@ -39,6 +39,8 @@ PREPEND_WWW = False
 
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-70c51.up.railway.app",
+    "https://mergemypdf.app",
+    "https://www.mergemypdf.app",
 ]
 
 
