@@ -490,7 +490,10 @@
               <span class="queue-label">Queue</span>
               <a id="clearall">Clear all</a>
             </div>
-            <span class="queue-counter" id="queue-counter">0 files</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="size-indicator" style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--ink3);display:none;"></span>
+              <span class="queue-counter" id="queue-counter">0 files</span>
+            </div>
           </div>
           <div class="file-list" id="file-list" role="list"></div>
         </section>
@@ -527,6 +530,11 @@
   </main>
 
   <script>
+    const MAX_FILE_MB = 20;
+    const MAX_TOTAL_MB = 50;
+    const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+    const MAX_TOTAL_BYTES = MAX_TOTAL_MB * 1024 * 1024;
+
     var files = [];
     var dragSrcIndex = null;
 
@@ -551,6 +559,11 @@
       return (bytes / 1048576).toFixed(1) + '\u00a0MB';
     }
 
+    function formatSizeShort(bytes) {
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + '\u00a0KB';
+      return (bytes / 1048576).toFixed(1) + '\u00a0MB';
+    }
+
     function esc(str) {
       return str
         .replace(/&/g, '&amp;')
@@ -561,11 +574,68 @@
 
     /* ── State mutations ── */
 
+    function showFileError(filename, reason) {
+      var bar = document.createElement('div');
+      bar.style.cssText = 'background:var(--red-bg);border:1px solid #FECACA;border-radius:4px;padding:10px 14px;width:100%;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+      var left = document.createElement('div');
+      left.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+      var icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('width', '14');
+      icon.setAttribute('height', '14');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('fill', 'none');
+      icon.setAttribute('stroke', 'currentColor');
+      icon.setAttribute('stroke-width', '2');
+      icon.setAttribute('stroke-linecap', 'round');
+      icon.setAttribute('stroke-linejoin', 'round');
+      icon.style.color = 'var(--red)';
+      icon.style.flexShrink = '0';
+      icon.innerHTML = '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
+
+      var msg = document.createElement('span');
+      msg.style.cssText = 'font-family:Geist,sans-serif;font-size:13px;color:var(--red);';
+      msg.textContent = reason;
+
+      left.appendChild(icon);
+      left.appendChild(msg);
+
+      var dismiss = document.createElement('button');
+      dismiss.type = 'button';
+      dismiss.style.cssText = 'background:transparent;border:none;color:var(--red);cursor:pointer;font-size:16px;line-height:1;padding:0;flex-shrink:0;';
+      dismiss.innerHTML = '\u00d7';
+      dismiss.addEventListener('click', function() {
+        if (bar.parentNode) bar.parentNode.removeChild(bar);
+      });
+
+      bar.appendChild(left);
+      bar.appendChild(dismiss);
+
+      var dropZoneEl = document.getElementById('drop-zone');
+      dropZoneEl.parentNode.insertBefore(bar, dropZoneEl);
+
+      setTimeout(function() {
+        if (bar.parentNode) bar.parentNode.removeChild(bar);
+      }, 4000);
+    }
+
     function add(fileList) {
       var pdfs = Array.from(fileList).filter(function(f) {
         return f.name.toLowerCase().slice(-4) === '.pdf' || f.type === 'application/pdf';
       });
-      files = files.concat(pdfs);
+      pdfs.forEach(function(f) {
+        if (f.size > MAX_FILE_BYTES) {
+          showFileError(f.name, f.name + ' exceeds the ' + MAX_FILE_MB + ' MB per-file limit');
+          return;
+        }
+        var currentTotal = files.reduce(function(sum, x) { return sum + x.size; }, 0);
+        if (currentTotal + f.size > MAX_TOTAL_BYTES) {
+          showFileError(f.name, 'Adding this file would exceed the ' + MAX_TOTAL_MB + ' MB total limit');
+          return;
+        }
+        files.push(f);
+      });
       render();
     }
 
@@ -588,7 +658,18 @@
       }
 
       queueCounter.textContent = files.length === 1 ? '1\u00a0file' : files.length + '\u00a0files';
-      btnMerge.disabled = files.length < 2;
+
+      var totalSize = files.reduce(function(sum, f) { return sum + f.size; }, 0);
+      var sizeIndicator = document.getElementById('size-indicator');
+      if (hasFiles) {
+        sizeIndicator.textContent = formatSizeShort(totalSize) + '\u00a0/\u00a0' + MAX_TOTAL_MB + '\u00a0MB';
+        sizeIndicator.style.color = totalSize >= MAX_TOTAL_BYTES * 0.8 ? 'var(--red)' : 'var(--ink3)';
+        sizeIndicator.style.display = '';
+      } else {
+        sizeIndicator.style.display = 'none';
+      }
+
+      btnMerge.disabled = files.length < 2 || totalSize > MAX_TOTAL_BYTES;
 
       fileListEl.innerHTML = '';
 

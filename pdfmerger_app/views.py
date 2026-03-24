@@ -13,7 +13,18 @@ def merge_view(request):
         )
 
         if form.is_valid():
-            files = request.FILES.getlist("files")
+            pdf_files = request.FILES.getlist("files")
+
+            MAX_FILE_BYTES = 20 * 1024 * 1024
+            MAX_TOTAL_BYTES = 50 * 1024 * 1024
+            for f in pdf_files:
+                if f.size > MAX_FILE_BYTES:
+                    return HttpResponse(f"File '{f.name}' exceeds the 20 MB per-file limit.", status=400)
+            total = sum(f.size for f in pdf_files)
+            if total > MAX_TOTAL_BYTES:
+                return HttpResponse("Total file size exceeds the 50 MB limit.", status=400)
+
+            files = pdf_files
 
             if len(files) >= 2:
                 file_paths = []
