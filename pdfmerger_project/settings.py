@@ -26,7 +26,16 @@ SECRET_KEY = "django-insecure-^$sxn0y&##*l#+_ny&e-!4bf@nc%ocj5o2oxi$jt%6whof#4t3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    'mergemypdf.app',
+    'www.mergemypdf.app',
+    'web-production-70c51.up.railway.app',
+    'localhost',
+    '127.0.0.1',
+]
+
+SECURE_SSL_REDIRECT = False
+PREPEND_WWW = False
 
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-70c51.up.railway.app",
