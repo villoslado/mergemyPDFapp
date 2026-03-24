@@ -783,7 +783,15 @@
       // Fires when the server responds (including a file download)
       if (!mergeIframe._active) return;
       mergeIframe._active = false;
-      showSuccess();
+      const body = mergeIframe.contentDocument?.body?.innerText?.trim();
+      if (body && body.length > 0) {
+        showFileError('', body);
+        btnMerge.textContent = 'Merge & download';
+        btnMerge.disabled = false;
+        mergeForm.target = '';
+      } else {
+        showSuccess();
+      }
     });
 
     function showSuccess() {
@@ -817,7 +825,8 @@
     /* ── Form submit: sync files[] → <input name="files"> via DataTransfer ── */
 
     mergeForm.addEventListener('submit', function(e) {
-      if (files.length < 2) {
+      const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+      if (totalSize > MAX_TOTAL_BYTES || files.length < 2) {
         e.preventDefault();
         return;
       }

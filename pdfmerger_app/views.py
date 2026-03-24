@@ -19,10 +19,14 @@ def merge_view(request):
             MAX_TOTAL_BYTES = 50 * 1024 * 1024
             for f in pdf_files:
                 if f.size > MAX_FILE_BYTES:
-                    return HttpResponse(f"File '{f.name}' exceeds the 20 MB per-file limit.", status=400)
+                    r = HttpResponse(f"File '{f.name}' exceeds the 20 MB per-file limit.", status=400)
+                    r["X-Merge-Error"] = "1"
+                    return r
             total = sum(f.size for f in pdf_files)
             if total > MAX_TOTAL_BYTES:
-                return HttpResponse("Total file size exceeds the 50 MB limit.", status=400)
+                r = HttpResponse("Total file size exceeds the 50 MB limit.", status=400)
+                r["X-Merge-Error"] = "1"
+                return r
 
             files = pdf_files
 
@@ -58,10 +62,9 @@ def merge_view(request):
                         os.remove(output_path)
 
             else:
-                return HttpResponse(
-                    "Upload at least two PDF files.",
-                    status=400,
-                )
+                r = HttpResponse("Upload at least two PDF files.", status=400)
+                r["X-Merge-Error"] = "1"
+                return r
     else:
         form = pdf_merge_form()
 
