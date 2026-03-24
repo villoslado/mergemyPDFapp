@@ -1,13 +1,13 @@
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfWriter, PdfReader
 
 
 def merge_pdfs(pdf_list, output_file):
-    merger = PdfMerger()
+    writer = PdfWriter()
 
     for pdf in pdf_list:
-        merger.append(pdf)
+        reader = PdfReader(pdf)
+        for page in reader.pages:
+            writer.add_page(page)
 
     with open(output_file, "wb") as f:
-        merger.write(f)
-
-    merger.close()
+        writer.write(f)
