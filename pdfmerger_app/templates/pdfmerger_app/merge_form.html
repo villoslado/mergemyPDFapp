@@ -513,6 +513,8 @@
 
       </form>
 
+      <iframe id="merge-iframe" name="merge-iframe" style="display:none"></iframe>
+
       <p class="footer-note">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9"/>
@@ -692,45 +694,19 @@
       filePicker.click();
     });
 
-    /* ── Cookie polling ── */
+    /* ── Iframe onload → success ── */
 
-    var pollInterval = null;
-    var pollTimeout  = null;
+    var mergeIframe = document.getElementById('merge-iframe');
 
-    function hasMergeCookie() {
-      return document.cookie.split(';').some(function(c) {
-        return c.trim().indexOf('merge_complete=') === 0;
-      });
-    }
-
-    function clearMergeCookie() {
-      document.cookie = 'merge_complete=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
-    }
-
-    function startPolling() {
-      pollInterval = setInterval(function() {
-        if (hasMergeCookie()) {
-          clearInterval(pollInterval);
-          clearTimeout(pollTimeout);
-          pollInterval = null;
-          pollTimeout  = null;
-          clearMergeCookie();
-          showSuccess();
-        }
-      }, 500);
-
-      pollTimeout = setTimeout(function() {
-        if (pollInterval) {
-          clearInterval(pollInterval);
-          pollInterval = null;
-        }
-        // Timeout fallback — reset button
-        btnMerge.textContent = 'Merge & download';
-        btnMerge.disabled = files.length < 2;
-      }, 30000);
-    }
+    mergeIframe.addEventListener('load', function() {
+      // Fires when the server responds (including a file download)
+      if (!mergeIframe._active) return;
+      mergeIframe._active = false;
+      showSuccess();
+    });
 
     function showSuccess() {
+      mergeForm.target = '';
       btnMerge.style.opacity = '0';
       setTimeout(function() {
         btnMerge.style.display = 'none';
@@ -784,10 +760,13 @@
       // Assign the FileList (supported in all modern browsers)
       input.files = dt.files;
 
-      // Loading state + start cookie polling
+      // Point form at the hidden iframe and mark it active
+      mergeForm.target = 'merge-iframe';
+      mergeIframe._active = true;
+
+      // Loading state
       btnMerge.textContent = 'Merging\u2026';
       btnMerge.disabled = true;
-      startPolling();
     });
 
     // Boot

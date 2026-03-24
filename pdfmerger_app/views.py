@@ -37,7 +37,6 @@ def merge_view(request):
                             'attachment; filename="merged.pdf"'
                         )
 
-                    response.set_cookie('merge_complete', '1', max_age=60, samesite='Lax')
                     return response
 
                 finally:
